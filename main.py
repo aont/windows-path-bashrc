@@ -1,7 +1,6 @@
-from typing import Optional, List, Tuple
+import typing
 
-
-def get_env_path(root: int, path: str) -> Optional[str]:
+def get_env_path(root: int, path: str) -> str:
     """
     Retrieve the 'Path' environment variable from the Windows Registry.
 
@@ -14,8 +13,8 @@ def get_env_path(root: int, path: str) -> Optional[str]:
 
     Returns
     -------
-    Optional[str]
-        The value of the 'Path' variable if found, otherwise None.
+    str
+        The value of the 'Path' variable if found, otherwise "".
     """
     import winreg
     import sys
@@ -26,12 +25,10 @@ def get_env_path(root: int, path: str) -> Optional[str]:
             return value
     except FileNotFoundError:
         sys.stderr.write(f"get_env_path: Path not found: {root=} {path=}\n")
-    except FileNotFoundError:
-        sys.stderr.write(f"get_env_path: Path value not found: {root=} {path=}\n")
-    return None
+    return ""
 
 
-def get_combined_path_list(expandvars: bool = True) -> List[str]:
+def get_combined_path_list(expandvars: bool = True) -> typing.List[str]:
     """
     Retrieve and combine user and system PATH variables into a single list.
 
@@ -42,7 +39,7 @@ def get_combined_path_list(expandvars: bool = True) -> List[str]:
 
     Returns
     -------
-    List[str]
+    typing.List[str]
         Combined list of system and user paths.
     """
     import winreg
@@ -76,7 +73,7 @@ def get_combined_path_list(expandvars: bool = True) -> List[str]:
     return combined_list
 
 
-def split_path(dirs: List[str]) -> Tuple[List[str], List[str]]:
+def split_path(dirs: typing.List[str]) -> typing.Tuple[typing.List[str], typing.List[str]]:
     """
     Split a list of directories into two groups:
     - Prepend paths (e.g., directories containing python.exe or pip.exe)
@@ -84,23 +81,27 @@ def split_path(dirs: List[str]) -> Tuple[List[str], List[str]]:
 
     Parameters
     ----------
-    dirs : List[str]
-        List of directories to categorize.
+    dirs : typing.List[str]
+        typing.List of directories to categorize.
 
     Returns
     -------
-    Tuple[List[str], List[str]]
+    typing.Tuple[typing.List[str], typing.List[str]]
         A tuple containing (prepend_dirs, append_dirs).
     """
     import os
 
-    prepend_dirs: List[str] = []
-    append_dirs: List[str] = []
+    prepend_dirs: typing.List[str] = []
+    append_dirs: typing.List[str] = []
 
-    windowsapps_path = os.path.join(os.environ["LOCALAPPDATA"], "Microsoft\\WindowsApps")
+    localappdata = os.environ.get("LOCALAPPDATA")
+    if localappdata is not None:
+        windowsapps_path = os.path.join(localappdata, "Microsoft\\WindowsApps")
+    else:
+        windowsapps_path = None
 
     for d in dirs:
-        if os.path.exists(d) and os.path.samefile(windowsapps_path, d):
+        if windowsapps_path is not None and os.path.exists(d) and os.path.samefile(windowsapps_path, d):
             # Skip WindowsApps
             continue
 
@@ -117,18 +118,18 @@ def split_path(dirs: List[str]) -> Tuple[List[str], List[str]]:
     return prepend_dirs, append_dirs
 
 
-def win_to_msys(path_list: List[str]) -> List[str]:
+def win_to_msys(path_list: typing.List[str]) -> typing.List[str]:
     """
     Convert Windows paths to MSYS2-style paths using cygpath.
 
     Parameters
     ----------
-    path_list : List[str]
+    path_list : typing.List[str]
         A list of Windows paths (e.g., ["C:\\foo\\bar"]).
 
     Returns
     -------
-    List[str]
+    typing.List[str]
         A list of MSYS2-style paths (e.g., ['/c/foo/bar']).
 
     Raises
@@ -143,7 +144,7 @@ def win_to_msys(path_list: List[str]) -> List[str]:
     # Execute cygpath and capture output
     result = subprocess.run(
         cmd,
-        shell=True,
+        shell=False,
         capture_output=True,
         text=True,
     )
