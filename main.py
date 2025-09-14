@@ -203,7 +203,7 @@ def ensure_bashrc_config(config_str: str, config_file: str = ".bashrc_winpath"):
         f.write(config_str)
 
     import shlex
-    source_line = "source \"${HOME}/\"" + shlex.quote(config_file)
+    source_line = "source " + double_quote("${HOME}/" + config_file)
     bashrc_content = ""
     if os.path.exists(bashrc_path_win):
         with open(bashrc_path_win, "rt", encoding="utf-8") as fp:
