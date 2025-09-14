@@ -1,16 +1,15 @@
 import typing
 import subprocess
 
-def get_env_path(root: int, path: str) -> str:
+def get_env_path(user: bool) -> str:
     """
     Retrieve the 'Path' environment variable from the Windows Registry.
 
     Parameters
     ----------
-    root : int
-        Registry root key (e.g., winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE).
-    path : str
-        Registry path where the 'Path' variable is stored.
+    user : bool
+        If True, retrieves user-wide PATH (HKEY_CURRENT_USER).
+        If False, retrieves system-wide PATH (HKEY_LOCAL_MACHINE).
 
     Returns
     -------
@@ -20,13 +19,21 @@ def get_env_path(root: int, path: str) -> str:
     import winreg
     import sys
 
+    if user:
+        root = winreg.HKEY_CURRENT_USER
+        path = r"Environment"
+    else:
+        root = winreg.HKEY_LOCAL_MACHINE
+        path = "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"
+
     try:
         with winreg.OpenKey(root, path) as key:
             value, _ = winreg.QueryValueEx(key, "Path")
             return value
     except FileNotFoundError:
-        sys.stderr.write(f"get_env_path: Path not found: {root=} {path=}\n")
+        sys.stderr.write(f"get_env_path: Path not found: {user=}\n")
     return ""
+
 
 def get_combined_path_list(expandvars: bool = True) -> typing.List[str]:
     """
@@ -45,11 +52,8 @@ def get_combined_path_list(expandvars: bool = True) -> typing.List[str]:
     import winreg
     import os
 
-    user_path = get_env_path(winreg.HKEY_CURRENT_USER, r"Environment")
-    system_path = get_env_path(
-        winreg.HKEY_LOCAL_MACHINE,
-        "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"
-    )
+    user_path = get_env_path(True)
+    system_path = get_env_path(False)
 
     if expandvars:
         do_expandvars = os.path.expandvars
