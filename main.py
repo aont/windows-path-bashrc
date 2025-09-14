@@ -28,7 +28,6 @@ def get_env_path(root: int, path: str) -> str:
         sys.stderr.write(f"get_env_path: Path not found: {root=} {path=}\n")
     return ""
 
-
 def get_combined_path_list(expandvars: bool = True) -> typing.List[str]:
     """
     Retrieve and combine user and system PATH variables into a single list.
@@ -58,8 +57,8 @@ def get_combined_path_list(expandvars: bool = True) -> typing.List[str]:
         def do_expandvars(input: str) -> str:
             return input
 
-    user_list = [do_expandvars(p) for p in user_path.split(";") if p]
-    system_list = [do_expandvars(p) for p in system_path.split(";") if p]
+    user_list = [do_expandvars(p).rstrip("\\") for p in user_path.split(";") if p]
+    system_list = [do_expandvars(p).rstrip("\\") for p in system_path.split(";") if p]
 
     return system_list + user_list
 
@@ -83,9 +82,10 @@ def split_path(dirs: typing.List[str]) -> typing.Dict:
     import os
 
     output_dict: typing.Dict = {}
-    prepend_dirs: typing.List[str] = []
     append_dirs: typing.List[str] = []
-    vscode_dir: str = None
+    output_dict["append"] = append_dirs
+    prepend_dirs: typing.List[str] = []
+    output_dict["prepend"] = prepend_dirs
 
     localappdata = os.environ.get("LOCALAPPDATA")
     if localappdata is not None:
@@ -98,11 +98,11 @@ def split_path(dirs: typing.List[str]) -> typing.Dict:
             continue
 
         if "Microsoft VS Code\\bin" in d:
-            vscode_dir = d
+            output_dict["vscode"] = d
             continue
 
         if os.path.isfile(os.path.join(d, "ssh.exe")):
-            prepend_dirs.append(d)
+            output_dict["ssh"] = d
             continue
 
         if os.path.isfile(os.path.join(d, "python.exe")):
@@ -114,12 +114,9 @@ def split_path(dirs: typing.List[str]) -> typing.Dict:
             continue
 
         append_dirs.append(d)
+        continue
 
-    return {
-        "prepend": prepend_dirs,
-        "append": append_dirs,
-        "vscode": vscode_dir
-    }
+    return output_dict
 
 
 def cygpath(path_list: typing.List[str], win_to_msys = True) -> typing.List[str]:
@@ -226,21 +223,26 @@ if __name__ == "__main__":
         sys.stderr.write(path + "\n")
 
     split_dict = split_path(path_list)
-    prepend_dirs = split_dict["prepend"]
-    append_dirs = split_dict["append"]
-    vscode_dir = split_dict.get("vscode")
 
     sys.stderr.write("# split path ====\n")
-    sys.stderr.write("## prepend path\n")
-    for path in prepend_dirs:
-        sys.stderr.write(path + "\n")
-    sys.stderr.write("## append path\n")
-    for path in append_dirs:
-        sys.stderr.write(path + "\n")
-    if vscode_dir is not None:
-        sys.stderr.write("## vscode\n")
-        sys.stderr.write(vscode_dir + "\n")
 
+    sys.stderr.write("## prepend\n")
+    for path in split_dict["prepend"]:
+        sys.stderr.write(path + "\n")
+
+    sys.stderr.write("## append\n")
+    for path in split_dict["append"]:
+        sys.stderr.write(path + "\n")
+
+    for key, value in split_dict.items():
+        if key not in ("append", "prepend"):
+            sys.stderr.write(f"## {key}: {value}\n")
+
+    append_dirs = split_dict["append"]
+    prepend_dirs = split_dict["prepend"]
+    ssh_path = split_dict.get("ssh")
+    if ssh_path is not None:
+        prepend_dirs.append(ssh_path)
     prepend_dirs_msys = cygpath(prepend_dirs)
     append_dirs_msys = cygpath(append_dirs)
     sys.stderr.write("# msys path ====\n")
@@ -258,6 +260,7 @@ if __name__ == "__main__":
         "PATH=" + double_quote("$PATH:" + ":".join(append_dirs_msys)) + "\n"
     )
 
+    vscode_dir = split_dict.get("vscode")
     if vscode_dir is not None:
         import pathlib
         config_str += """\
@@ -270,7 +273,8 @@ function code() {
     "$@"
 }
 """
-    config_str += "export RSYNC_RSH=/usr/bin/ssh\n"
+    if ssh_path is not None:
+        config_str += "export RSYNC_RSH=/usr/bin/ssh\n"
 
     # ログ出力
     sys.stderr.write(config_str)
