@@ -1,4 +1,22 @@
-def get_env_path(root, path):
+from typing import Optional, List, Tuple
+
+
+def get_env_path(root: int, path: str) -> Optional[str]:
+    """
+    Retrieve the 'Path' environment variable from the Windows Registry.
+
+    Parameters
+    ----------
+    root : int
+        Registry root key (e.g., winreg.HKEY_CURRENT_USER, winreg.HKEY_LOCAL_MACHINE).
+    path : str
+        Registry path where the 'Path' variable is stored.
+
+    Returns
+    -------
+    Optional[str]
+        The value of the 'Path' variable if found, otherwise None.
+    """
     import winreg
     import sys
 
@@ -13,108 +31,126 @@ def get_env_path(root, path):
     return None
 
 
-def get_combined_path_list(expandvars = True):
+def get_combined_path_list(expandvars: bool = True) -> List[str]:
+    """
+    Retrieve and combine user and system PATH variables into a single list.
+
+    Parameters
+    ----------
+    expandvars : bool, optional
+        If True, expand environment variables (default is True).
+
+    Returns
+    -------
+    List[str]
+        Combined list of system and user paths.
+    """
     import winreg
     import os
 
-    # ユーザー環境変数
+    # User environment variable
     user_path = get_env_path(
         winreg.HKEY_CURRENT_USER,
         r"Environment"
     )
 
-    # システム環境変数
+    # System environment variable
     system_path = get_env_path(
         winreg.HKEY_LOCAL_MACHINE,
         "SYSTEM\\CurrentControlSet\\Control\\Session Manager\\Environment"
     )
 
-    # ";" で分割してリスト化（空要素は除去）
+    # Split by ";" into a list (excluding empty elements)
     if expandvars:
         do_expandvars = os.path.expandvars
     else:
-        def do_expandvars(input):
+        def do_expandvars(input: str) -> str:
             return input
 
     user_list = [do_expandvars(p) for p in user_path.split(";") if p]
     system_list = [do_expandvars(p) for p in system_path.split(";") if p]
 
-    # 結合
+    # Combine lists (system first, then user)
     combined_list = system_list + user_list
 
     return combined_list
 
-def split_path(dirs: list[str]):
+
+def split_path(dirs: List[str]) -> Tuple[List[str], List[str]]:
+    """
+    Split a list of directories into two groups:
+    - Prepend paths (e.g., directories containing python.exe or pip.exe)
+    - Append paths (all others except WindowsApps)
+
+    Parameters
+    ----------
+    dirs : List[str]
+        List of directories to categorize.
+
+    Returns
+    -------
+    Tuple[List[str], List[str]]
+        A tuple containing (prepend_dirs, append_dirs).
+    """
     import os
 
-    prepend_dirs = []
-    append_dirs = []
+    prepend_dirs: List[str] = []
+    append_dirs: List[str] = []
 
     windowsapps_path = os.path.join(os.environ["LOCALAPPDATA"], "Microsoft\\WindowsApps")
 
     for d in dirs:
-
         if os.path.exists(d) and os.path.samefile(windowsapps_path, d):
-            # append_dirs.append(d)
+            # Skip WindowsApps
             continue
-        
+
         if os.path.isfile(os.path.join(d, "python.exe")):
             prepend_dirs.append(d)
             continue
-        
+
         if os.path.isfile(os.path.join(d, "pip.exe")):
             prepend_dirs.append(d)
             continue
 
         append_dirs.append(d)
-        continue
 
     return prepend_dirs, append_dirs
 
-def win_to_msys(path_list: list[str]) -> str:
+
+def win_to_msys(path_list: List[str]) -> List[str]:
     """
-    Windows形式のパスを MSYS2 形式のパスに変換する。
-    
+    Convert Windows paths to MSYS2-style paths using cygpath.
+
     Parameters
     ----------
-    path : str
-        Windows形式のパス (例: 'C:\\foo\\bar')
-    msys_bash : str
-        MSYS2 の bash.exe のパス (デフォルト: c:\\msys64\\usr\\bin\\bash.exe)
-    
+    path_list : List[str]
+        A list of Windows paths (e.g., ["C:\\foo\\bar"]).
+
     Returns
     -------
-    str
-        MSYS2 形式のパス (例: '/c/foo/bar')
+    List[str]
+        A list of MSYS2-style paths (e.g., ['/c/foo/bar']).
+
+    Raises
+    ------
+    RuntimeError
+        If cygpath fails.
     """
-
     import subprocess
-    import shlex
-    # import os
 
-    cmd = tuple(("c:\\msys64\\usr\\bin\\cygpath", "-u", *path_list))
-    # cmd = f'{msys_bash} --login -c {shlex.quote(shlex.join(("cygpath", "-u", path)))}'
+    cmd = tuple(("c:\\msys64\\usr\\bin\\cygpath.exe", "-u", *path_list))
 
-    # env = os.environ.copy()
-    # env = dict()
-    # env["MSYSTEM"] = "MSYS"
-    # env["PATH"] = r"C:\msys64\ucrt64\bin;C:\msys64\usr\local\bin;C:\msys64\usr\bin;C:\msys64\usr\bin;C:\msys64\usr\bin\site_perl;C:\msys64\usr\bin\vendor_perl;C:\msys64\usr\bin\core_perl"
-    # env["PATH"] = r"C:\msys64\usr\local\bin;C:\msys64\usr\bin;C:\msys64\usr\bin"
-    # env["PATH"] = r"C:\msys64\usr\bin"
-
-    # 実行して標準出力を取得
+    # Execute cygpath and capture output
     result = subprocess.run(
         cmd,
         shell=True,
         capture_output=True,
         text=True,
-        # env=env
     )
-    
+
     if result.returncode != 0:
         raise RuntimeError(f"cygpath failed: {result.stderr}")
-    
-    # return result.stdout.strip()
+
     return result.stdout.splitlines()
 
 
@@ -146,7 +182,6 @@ if __name__ == "__main__":
         sys.stderr.write(path + "\n")
 
     sys.stderr.write("# msys path join ====\n")
-    import shlex
     from json.encoder import encode_basestring as double_quote
     sys.stderr.write("PATH=" + double_quote(":".join(prepend_dirs_msys) + ":$PATH") + "\n")
     sys.stderr.write("PATH=" + double_quote("$PATH:" + ":".join(append_dirs_msys)) + "\n")
