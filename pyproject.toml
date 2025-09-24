@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "windows-path-bashrc"
+version = "0.1.0"
+description = "Synchronise Windows PATH entries with MSYS2 bash"
+readme = "README.md"
+authors = [{name = "windows-path-bashrc contributors"}]
+requires-python = ">=3.9"
+classifiers = [
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Operating System :: Microsoft :: Windows",
+]
+
+[project.urls]
+Homepage = "https://github.com/<your-account>/windows-path-bashrc"
+
+[project.scripts]
+windows-path-bashrc = "windows_path_bashrc:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["windows_path_bashrc"]
