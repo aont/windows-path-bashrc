@@ -18,7 +18,7 @@ In short, this tool makes it easier to **synchronize Windows PATH with MSYS2 env
 Install directly from GitHub using `pip`:
 
 ```bash
-pip install git+https://github.com/<your-account>/windows-path-bashrc
+pip install git+https://github.com/aont/windows-path-bashrc.git
 ```
 
 The installation exposes a console command named `windows-path-bashrc`.
