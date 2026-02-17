@@ -63,16 +63,7 @@ def split_path(dirs: typing.List[str]) -> typing.Dict[str, typing.Any]:
 
     output_dict: typing.Dict[str, typing.Any] = {"append": [], "prepend": []}
 
-    localappdata = os.environ.get("LOCALAPPDATA")
-    if localappdata is not None:
-        windowsapps_path = os.path.join(localappdata, r"Microsoft\\WindowsApps")
-    else:
-        windowsapps_path = None
-
     for directory in dirs:
-        if windowsapps_path is not None and os.path.exists(directory) and os.path.samefile(windowsapps_path, directory):
-            continue
-
         if os.path.isfile(os.path.join(directory, "python.exe")):
             output_dict["prepend"].append(directory)
             continue
