@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from json.encoder import encode_basestring as double_quote
-import pathlib
 import subprocess
 import sys
 import typing
@@ -72,14 +71,6 @@ def split_path(dirs: typing.List[str]) -> typing.Dict[str, typing.Any]:
 
     for directory in dirs:
         if windowsapps_path is not None and os.path.exists(directory) and os.path.samefile(windowsapps_path, directory):
-            continue
-
-        if r"Microsoft VS Code\\bin" in directory:
-            output_dict["vscode"] = directory
-            continue
-
-        if os.path.isfile(os.path.join(directory, "ssh.exe")):
-            output_dict["ssh"] = directory
             continue
 
         if os.path.isfile(os.path.join(directory, "python.exe")):
@@ -156,30 +147,11 @@ def ensure_bashrc_config(config_str: str, config_file: str = ".bashrc_winpath") 
 def _build_config_string(
     prepend_dirs_msys: typing.Sequence[str],
     append_dirs_msys: typing.Sequence[str],
-    vscode_dir: typing.Optional[str],
-    ssh_path: typing.Optional[str],
 ) -> str:
     config_lines = [
         "PATH=" + double_quote(":".join(prepend_dirs_msys) + ":$PATH"),
         "PATH=" + double_quote("$PATH:" + ":".join(append_dirs_msys)),
     ]
-
-    if vscode_dir is not None:
-        vscode_parent = pathlib.Path(vscode_dir).parent
-        vscode_parent_msys = cygpath([str(vscode_parent)])[0]
-        config_lines.append(
-            """function code() {
-    local VSCODE_PATH=""" + double_quote(vscode_parent_msys) + """
-    VSCODE_DEV= \\
-    ELECTRON_RUN_AS_NODE=1 \\
-    "${VSCODE_PATH}/Code.exe" \\
-    "$(cygpath -w "${VSCODE_PATH}/resources/app/out/cli.js")" \\
-    "$@"
-}"""
-        )
-
-    if ssh_path is not None:
-        config_lines.append("export RSYNC_RSH=/usr/bin/ssh")
 
     return "\n".join(config_lines) + "\n"
 
@@ -208,9 +180,6 @@ def main() -> None:
 
     append_dirs = list(split_dict["append"])
     prepend_dirs = list(split_dict["prepend"])
-    ssh_path = split_dict.get("ssh")
-    if ssh_path is not None:
-        prepend_dirs.append(ssh_path)
     prepend_dirs_msys = cygpath(prepend_dirs)
     append_dirs_msys = cygpath(append_dirs)
     sys.stderr.write("# msys path ====\n")
@@ -225,8 +194,6 @@ def main() -> None:
     config_str = _build_config_string(
         prepend_dirs_msys,
         append_dirs_msys,
-        split_dict.get("vscode"),
-        split_dict.get("ssh"),
     )
 
     sys.stderr.write(config_str)
