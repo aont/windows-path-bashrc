@@ -57,6 +57,17 @@ def get_combined_path_list(expandvars: bool = True) -> typing.List[str]:
     return system_list + user_list
 
 
+WINDOWS_APPS_PATH_PARTS = ("appdata", "local", "microsoft", "windowsapps")
+
+
+def _is_windows_apps_path(directory: str) -> bool:
+    """Return whether ``directory`` is the per-user WindowsApps directory."""
+    import re
+
+    path_parts = [part.lower() for part in re.split(r"[\\/]+", directory.rstrip(r"\/"))]
+    return path_parts[-len(WINDOWS_APPS_PATH_PARTS):] == list(WINDOWS_APPS_PATH_PARTS)
+
+
 def split_path(dirs: typing.List[str]) -> typing.Dict[str, typing.Any]:
     """Categorise the Windows PATH directories for MSYS2 consumption."""
     import os
@@ -64,6 +75,10 @@ def split_path(dirs: typing.List[str]) -> typing.Dict[str, typing.Any]:
     output_dict: typing.Dict[str, typing.Any] = {"append": [], "prepend": []}
 
     for directory in dirs:
+        if _is_windows_apps_path(directory):
+            output_dict["append"].append(directory)
+            continue
+
         if os.path.isfile(os.path.join(directory, "python.exe")):
             output_dict["prepend"].append(directory)
             continue
